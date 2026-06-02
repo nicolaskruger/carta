@@ -1,6 +1,9 @@
 use uuid::Uuid;
 
-use crate::{entity::user::User, repository::user_repository::IUserRepository};
+use crate::{
+    entity::user::User,
+    repository::user_repository::{IUserRepository, UserRepositoryError},
+};
 
 pub struct CreateUserCase<UR: IUserRepository> {
     user_repository: UR,
@@ -17,17 +20,24 @@ pub struct CreateUserInput {
 
 pub struct CreateUserOutput {}
 
+pub enum CreateUserError {
+    UserNotCreated,
+}
+
 impl<UR: IUserRepository> CreateUserCase<UR> {
     pub fn new(user_repository: UR) -> Self {
         Self { user_repository }
     }
 
-    pub async fn exec(&self, input: CreateUserInput) {
+    pub async fn exec(&self, input: CreateUserInput) -> Result<(), CreateUserError> {
         let create_user = input.user;
 
         let user = User::new(None, create_user.name, Uuid::new_v4());
 
-        self.user_repository.create(user).await;
+        match self.user_repository.create(user).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(CreateUserError::UserNotCreated),
+        }
     }
 }
 
@@ -55,7 +65,7 @@ mod test {
             .expect_create()
             .once()
             .withf(|u| u.name == "anakin" && u.master.is_none() && u.id != Uuid::new_v4())
-            .returning(|u| u);
+            .returning(Ok);
 
         let create_user = CreateUser {
             name: "anakin".into(),
@@ -64,8 +74,11 @@ mod test {
 
         let create_user_case = CreateUserCase::new(user_repository);
 
-        create_user_case
+        let is_ok = create_user_case
             .exec(CreateUserInput { user: create_user })
-            .await;
+            .await
+            .is_ok();
+
+        assert!(is_ok);
     }
 }
