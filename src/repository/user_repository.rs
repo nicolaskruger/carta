@@ -12,7 +12,7 @@ pub enum UserRepositoryError {
 #[async_trait]
 pub trait IUserRepository {
     async fn create(&self, user: User) -> Result<User, UserRepositoryError>;
-    async fn find(&self, id: Uuid) -> User;
+    async fn find(&self, id: Uuid) -> Result<User, UserRepositoryError>;
 }
 
 pub struct UserRepository {}
@@ -23,7 +23,7 @@ impl IUserRepository for UserRepository {
         todo!()
     }
 
-    async fn find(&self, id: Uuid) -> User {
+    async fn find(&self, id: Uuid) -> Result<User, UserRepositoryError> {
         todo!()
     }
 }

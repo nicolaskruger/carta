@@ -11,7 +11,7 @@ pub struct CreateUserCase<UR: IUserRepository> {
 
 pub struct CreateUser {
     pub name: String,
-    pub master: Option<Uuid>,
+    pub master_id: Option<Uuid>,
 }
 
 pub struct CreateUserInput {
@@ -48,7 +48,7 @@ mod test {
 
     use crate::{
         repository::user_repository::MockIUserRepository,
-        use_case::user::create_user_case::{self, CreateUserCase},
+        use_case::user::create_user_case::CreateUserCase,
     };
 
     #[test]
@@ -57,6 +57,35 @@ mod test {
 
         let _ = CreateUserCase::new(mock);
     }
+
+    #[tokio::test]
+    async fn create_user_with_master_not_found() {
+        let mut user_repository = MockIUserRepository::new();
+
+        let master_id = Uuid::new_v4();
+        let master = User::new(None, "Obi".to_string(), master_id);
+
+        user_repository
+            .expect_find()
+            .once()
+            .withf(move |id| id.to_string() == master_id.clone().to_string())
+            .returning(|_| Err(UserRepositoryError::UserNotFound));
+
+        let create_user = CreateUser {
+            name: "anakin".into(),
+            master_id: Some(master.id),
+        };
+
+        let create_user_case = CreateUserCase::new(user_repository);
+
+        let is_ok = create_user_case
+            .exec(CreateUserInput { user: create_user })
+            .await
+            .is_ok();
+
+        assert!(is_ok);
+    }
+
     #[tokio::test]
     async fn create_user_root() {
         let mut user_repository = MockIUserRepository::new();
@@ -69,7 +98,7 @@ mod test {
 
         let create_user = CreateUser {
             name: "anakin".into(),
-            master: None,
+            master_id: None,
         };
 
         let create_user_case = CreateUserCase::new(user_repository);
