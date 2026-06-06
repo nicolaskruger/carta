@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct User {
     pub master: Box<Option<User>>,
     pub name: String,
