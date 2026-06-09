@@ -9,6 +9,13 @@ pub async fn db_pool(database_url: String) -> Result<Pool<Postgres>, sqlx::Error
     Ok(pool)
 }
 
+#[derive(Debug)]
+pub enum MigrationError {
+    LoadEnv,
+    SqlPool,
+    RunMigration,
+}
+
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
     sqlx::migrate!("./migrations").run(pool).await?;
     Ok(())

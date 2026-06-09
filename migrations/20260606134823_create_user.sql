@@ -3,3 +3,4 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     master_id UUID REFERENCES users(id)
 );
+
