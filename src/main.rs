@@ -1,6 +1,7 @@
 use carta::config::{
     db_pool::{db_pool, run_migrations},
     env::load_env,
+    grpc_config,
 };
 
 #[derive(Debug)]
@@ -8,6 +9,7 @@ enum MainError {
     Env,
     Migration,
     Pool,
+    Grpc,
 }
 
 #[tokio::main]
@@ -22,5 +24,7 @@ async fn main() -> Result<(), MainError> {
         .await
         .map_err(|_| MainError::Migration)?;
 
-    Ok(())
+    grpc_config::grpc_config()
+        .await
+        .map_err(|_| MainError::Grpc)
 }

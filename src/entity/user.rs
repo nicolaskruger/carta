@@ -4,14 +4,16 @@ use uuid::Uuid;
 pub struct User {
     pub master: Box<Option<User>>,
     pub name: String,
+    pub password: String,
     pub id: Uuid,
 }
 
 impl User {
-    pub fn new(master: Option<User>, name: String, id: Uuid) -> Self {
+    pub fn new(master: Option<User>, name: String, password: String, id: Uuid) -> Self {
         Self {
             master: Box::new(master),
             name,
+            password,
             id,
         }
     }
@@ -25,6 +27,6 @@ mod test {
 
     #[test]
     fn new() {
-        User::new(None, "anakin".into(), Uuid::new_v4());
+        User::new(None, "anakin".into(), "password".into(), Uuid::new_v4());
     }
 }

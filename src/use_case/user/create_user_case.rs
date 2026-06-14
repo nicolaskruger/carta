@@ -48,7 +48,7 @@ impl<UR: IUserRepository> CreateUserCase<UR> {
 
         let master = self.fetch_master(&create_user).await?;
 
-        let user = User::new(master, create_user.name, Uuid::new_v4());
+        let user = User::new(master, create_user.name, "password".into(), Uuid::new_v4());
 
         self.user_repository
             .create(user)
@@ -81,14 +81,14 @@ mod test {
         let mut user_repository = MockIUserRepository::new();
 
         let master_id = Uuid::new_v4();
-        let master = User::new(None, "Obi".to_string(), master_id);
+        let master = User::new(None, "Obi".to_string(), "password".into(), master_id);
 
         user_repository
             .expect_find()
             .once()
             .withf(move |id| id.to_string() == master_id.clone().to_string())
             .returning(move |_| {
-                let master = User::new(None, "Obi".to_string(), master_id);
+                let master = User::new(None, "Obi".to_string(), "password".into(), master_id);
                 Ok(master)
             });
 
@@ -118,7 +118,7 @@ mod test {
         let mut user_repository = MockIUserRepository::new();
 
         let master_id = Uuid::new_v4();
-        let master = User::new(None, "Obi".to_string(), master_id);
+        let master = User::new(None, "Obi".to_string(), "password".into(), master_id);
 
         user_repository
             .expect_find()
