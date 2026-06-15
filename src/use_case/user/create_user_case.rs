@@ -1,9 +1,16 @@
 use uuid::Uuid;
 
-use crate::{entity::user::User, repository::user_repository::IUserRepository};
+use crate::{
+    entity::user::User,
+    repository::{
+        auth_repository::{AuthRepositoryErr, IAuthRepository},
+        user_repository::IUserRepository,
+    },
+};
 
-pub struct CreateUserCase<UR: IUserRepository> {
+pub struct CreateUserCase<UR: IUserRepository, UA: IAuthRepository> {
     user_repository: UR,
+    auth_repository: UA,
 }
 
 pub struct CreateUser {
@@ -20,11 +27,15 @@ pub struct CreateUserOutput {}
 pub enum CreateUserError {
     UserNotCreated,
     MasterNotFound,
+    AuthError(AuthRepositoryErr),
 }
 
-impl<UR: IUserRepository> CreateUserCase<UR> {
-    pub fn new(user_repository: UR) -> Self {
-        Self { user_repository }
+impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
+    pub fn new(user_repository: UR, auth_repository: UA) -> Self {
+        Self {
+            user_repository,
+            auth_repository,
+        }
     }
 
     async fn fetch_master(
@@ -65,15 +76,19 @@ mod test {
     use super::*;
 
     use crate::{
-        repository::user_repository::{MockIUserRepository, UserRepositoryError},
+        repository::{
+            auth_repository::{self, MockIAuthRepository},
+            user_repository::{MockIUserRepository, UserRepositoryError},
+        },
         use_case::user::create_user_case::CreateUserCase,
     };
 
     #[test]
     fn new() {
         let mock = MockIUserRepository::new();
+        let mut auth_repository = MockIAuthRepository::new();
 
-        let _ = CreateUserCase::new(mock);
+        let _ = CreateUserCase::new(mock, auth_repository);
     }
 
     #[tokio::test]
@@ -103,7 +118,8 @@ mod test {
             master_id: Some(master.id),
         };
 
-        let create_user_case = CreateUserCase::new(user_repository);
+        let mut auth_repository = MockIAuthRepository::new();
+        let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_ok = create_user_case
             .exec(CreateUserInput { user: create_user })
@@ -131,7 +147,8 @@ mod test {
             master_id: Some(master.id),
         };
 
-        let create_user_case = CreateUserCase::new(user_repository);
+        let mut auth_repository = MockIAuthRepository::new();
+        let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_err = create_user_case
             .exec(CreateUserInput { user: create_user })
@@ -156,7 +173,8 @@ mod test {
             master_id: None,
         };
 
-        let create_user_case = CreateUserCase::new(user_repository);
+        let mut auth_repository = MockIAuthRepository::new();
+        let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_ok = create_user_case
             .exec(CreateUserInput { user: create_user })

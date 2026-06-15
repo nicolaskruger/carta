@@ -60,7 +60,7 @@ mod test {
             let p_a = "password";
             let p_b = self.auth_repository.hash("password").await?;
 
-            assert!(self.auth_repository.verify(&p_a, &p_b).await?);
+            assert!(self.auth_repository.verify(p_a, &p_b).await?);
 
             Ok(())
         }
