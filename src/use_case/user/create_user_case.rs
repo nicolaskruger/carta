@@ -15,6 +15,7 @@ pub struct CreateUserCase<UR: IUserRepository, UA: IAuthRepository> {
 
 pub struct CreateUser {
     pub name: String,
+    pub password: String,
     pub master_id: Option<Uuid>,
 }
 
@@ -59,7 +60,13 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
 
         let master = self.fetch_master(&create_user).await?;
 
-        let user = User::new(master, create_user.name, "password".into(), Uuid::new_v4());
+        let password = self
+            .auth_repository
+            .hash(&create_user.password)
+            .await
+            .map_err(CreateUserError::AuthError)?;
+
+        let user = User::new(master, create_user.name, password, Uuid::new_v4());
 
         self.user_repository
             .create(user)
@@ -77,7 +84,7 @@ mod test {
 
     use crate::{
         repository::{
-            auth_repository::{self, MockIAuthRepository},
+            auth_repository::MockIAuthRepository,
             user_repository::{MockIUserRepository, UserRepositoryError},
         },
         use_case::user::create_user_case::CreateUserCase,
@@ -86,9 +93,49 @@ mod test {
     #[test]
     fn new() {
         let mock = MockIUserRepository::new();
-        let mut auth_repository = MockIAuthRepository::new();
+        let auth_repository = MockIAuthRepository::new();
 
         let _ = CreateUserCase::new(mock, auth_repository);
+    }
+
+    #[tokio::test]
+    async fn auth_error() {
+        let mut user_repository = MockIUserRepository::new();
+
+        let master_id = Uuid::new_v4();
+        let master = User::new(None, "Obi".to_string(), "password".into(), master_id);
+
+        user_repository
+            .expect_find()
+            .once()
+            .withf(move |id| id.to_string() == master_id.clone().to_string())
+            .returning(move |_| {
+                let master = User::new(None, "Obi".to_string(), "password".into(), master_id);
+                Ok(master)
+            });
+
+        let create_user = CreateUser {
+            name: "anakin".into(),
+            password: "password".into(),
+            master_id: Some(master.id),
+        };
+
+        let mut auth_repository = MockIAuthRepository::new();
+
+        auth_repository
+            .expect_hash()
+            .once()
+            .withf(|password| password == "password")
+            .returning(|_| Err(AuthRepositoryErr::Hash));
+
+        let create_user_case = CreateUserCase::new(user_repository, auth_repository);
+
+        let is_err = create_user_case
+            .exec(CreateUserInput { user: create_user })
+            .await
+            .is_err();
+
+        assert!(is_err);
     }
 
     #[tokio::test]
@@ -115,10 +162,18 @@ mod test {
 
         let create_user = CreateUser {
             name: "anakin".into(),
+            password: "password".into(),
             master_id: Some(master.id),
         };
 
         let mut auth_repository = MockIAuthRepository::new();
+
+        auth_repository
+            .expect_hash()
+            .once()
+            .withf(|password| password == "password")
+            .returning(|_| Ok("hashed_password".to_string()));
+
         let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_ok = create_user_case
@@ -144,6 +199,7 @@ mod test {
 
         let create_user = CreateUser {
             name: "anakin".into(),
+            password: "password".into(),
             master_id: Some(master.id),
         };
 
@@ -170,10 +226,18 @@ mod test {
 
         let create_user = CreateUser {
             name: "anakin".into(),
+            password: "password".into(),
             master_id: None,
         };
 
         let mut auth_repository = MockIAuthRepository::new();
+
+        auth_repository
+            .expect_hash()
+            .once()
+            .withf(|password| password == "password")
+            .returning(|_| Ok("hashed_password".to_string()));
+
         let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_ok = create_user_case
