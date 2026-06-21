@@ -203,7 +203,7 @@ mod test {
             master_id: Some(master.id),
         };
 
-        let mut auth_repository = MockIAuthRepository::new();
+        let auth_repository = MockIAuthRepository::new();
         let create_user_case = CreateUserCase::new(user_repository, auth_repository);
 
         let is_err = create_user_case
