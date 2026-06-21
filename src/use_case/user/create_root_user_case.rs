@@ -70,7 +70,7 @@ mod test {
     use super::*;
 
     use crate::repository::{
-        auth_repository::MockIAuthRepository,
+        auth_repository::{AuthRepositoryErr, MockIAuthRepository},
         user_repository::{MockIUserRepository, UserRepositoryError},
     };
 
