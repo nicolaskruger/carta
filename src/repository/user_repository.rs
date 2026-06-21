@@ -8,6 +8,8 @@ use crate::entity::user::User;
 pub enum UserRepositoryError {
     UserNotFound,
     UserNotCreated,
+    ExistRootSql,
+    ExistRootOption,
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -16,6 +18,7 @@ pub trait IUserRepository {
     async fn create(&self, user: User) -> Result<User, UserRepositoryError>;
     async fn find(&self, id: Uuid) -> Result<User, UserRepositoryError>;
     async fn delete(&self, id: Uuid) -> Result<(), UserRepositoryError>;
+    async fn exists_root(&self) -> Result<bool, UserRepositoryError>;
 }
 
 pub struct UserTable {
@@ -89,12 +92,29 @@ impl IUserRepository for PostgresqlUserRepository {
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), UserRepositoryError> {
-        let _ = sqlx::query!("DELETE FROM Users WHERE id = $1;", id,)
+        let _ = sqlx::query!("DELETE FROM users WHERE id = $1;", id,)
             .execute(&self.pool)
             .await
             .map_err(|_| UserRepositoryError::UserNotCreated)?;
 
         Ok(())
+    }
+
+    async fn exists_root(&self) -> Result<bool, UserRepositoryError> {
+        let exists: Option<bool> = sqlx::query_scalar!(
+            "
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM users 
+                    WHERE master_id IS NULL
+                );
+                "
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|_| UserRepositoryError::ExistRootSql)?;
+
+        Ok(exists.ok_or(UserRepositoryError::ExistRootOption)?)
     }
 }
 
@@ -139,5 +159,14 @@ mod tests {
         assert_eq!(user.name, fetch_user.name);
         assert_eq!(user.password, fetch_user.password);
         assert_eq!(user.id, fetch_user.id);
+
+        let exists_master = repository.exists_root().await;
+
+        assert!(exists_master.is_ok());
+        assert!(exists_master.unwrap());
+
+        let deleted_result = repository.delete(fetch_user.id).await;
+
+        assert!(deleted_result.is_ok());
     }
 }
