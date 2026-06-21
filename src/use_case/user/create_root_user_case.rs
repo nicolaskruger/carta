@@ -24,10 +24,11 @@ pub struct CreateRootUserInput {
 
 pub struct CreateRootUserOutput {}
 
-pub enum CreateUserError {
-    HasRootUser,
-    MasterNotFound,
-    AuthError(AuthRepositoryErr),
+#[derive(Debug, PartialEq, Eq)]
+pub enum CreateRootUserError {
+    ExitsRoot,
+    CreateUser,
+    EncryptPassword,
 }
 
 impl<UR: IUserRepository, UA: IAuthRepository> CreateRootUserCase<UR, UA> {
@@ -38,8 +39,14 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateRootUserCase<UR, UA> {
         }
     }
 
-    pub async fn exec(&self, input: CreateRootUserInput) -> Result<(), CreateUserError> {
-        todo!();
+    pub async fn exec(&self, input: CreateRootUserInput) -> Result<(), CreateRootUserError> {
+        let exists_root = self
+            .user_repository
+            .exists_root()
+            .await
+            .map_err(|_| CreateRootUserError::ExitsRoot)?;
+
+        if exists_root { todo!() } else { Ok(()) }
     }
 }
 
@@ -48,12 +55,9 @@ mod test {
 
     use super::*;
 
-    use crate::{
-        repository::{
-            auth_repository::MockIAuthRepository,
-            user_repository::{MockIUserRepository, UserRepositoryError},
-        },
-        use_case::user::create_user_case::CreateUserCase,
+    use crate::repository::{
+        auth_repository::MockIAuthRepository,
+        user_repository::{MockIUserRepository, UserRepositoryError},
     };
 
     #[test]
@@ -62,5 +66,61 @@ mod test {
         let auth_repository = MockIAuthRepository::new();
 
         let _ = CreateRootUserCase::new(mock, auth_repository);
+    }
+
+    #[tokio::test]
+    async fn should_not_create_an_root_user_when_error() {
+        let mut user_repository = MockIUserRepository::new();
+        let auth_repository = MockIAuthRepository::new();
+
+        user_repository
+            .expect_exists_root()
+            .once()
+            .returning(|| Err(UserRepositoryError::ExistRootSql));
+
+        user_repository.expect_create().never();
+
+        let create_root_usercase = CreateRootUserCase::new(user_repository, auth_repository);
+
+        let input = CreateRootUserInput {
+            user: CreateRootUser {
+                name: "my name".into(),
+                password: "my password".into(),
+            },
+        };
+
+        let res = create_root_usercase.exec(input).await;
+
+        assert!(res.is_err());
+
+        if let Err(res) = res {
+            assert_eq!(res, CreateRootUserError::ExitsRoot);
+        }
+    }
+
+    #[tokio::test]
+    async fn should_not_create_an_root_user_when_already_exist() {
+        let mut user_repository = MockIUserRepository::new();
+        let auth_repository = MockIAuthRepository::new();
+
+        user_repository
+            .expect_exists_root()
+            .once()
+            .returning(|| Ok(false));
+
+        user_repository.expect_create().never();
+
+        let create_root_usercase = CreateRootUserCase::new(user_repository, auth_repository);
+
+        let input = CreateRootUserInput {
+            user: CreateRootUser {
+                name: "my name".into(),
+                password: "my password".into(),
+            },
+        };
+
+        let res = create_root_usercase.exec(input).await;
+
+        assert!(res.is_ok());
     }
 }
