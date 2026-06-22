@@ -14,6 +14,9 @@ enum MainError {
 
 #[tokio::main]
 async fn main() -> Result<(), MainError> {
+
+    tracing_subscriber::fmt::init();
+
     let env = load_env().map_err(|_| MainError::Env)?;
 
     let pool = db_pool(&env.database_url)

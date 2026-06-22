@@ -1,3 +1,4 @@
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 use crate::{
@@ -36,29 +37,36 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateRootUserCase<UR, UA> {
         }
     }
 
+    #[instrument(skip(self, input), fields(user_name = %input.user.name))]
     pub async fn exec(&self, input: CreateRootUserInput) -> Result<(), CreateRootUserError> {
-        let exists_root = self
-            .user_repository
-            .exists_root()
-            .await
-            .map_err(|_| CreateRootUserError::ExitsRoot)?;
+        info!("create root user");
+
+        let exists_root = self.user_repository.exists_root().await.map_err(|_| {
+            error!("failed to check if root user exists");
+            CreateRootUserError::ExitsRoot
+        })?;
 
         if exists_root {
             let password = self
                 .auth_repository
                 .hash(&input.user.password)
                 .await
-                .map_err(|_| CreateRootUserError::EncryptPassword)?;
+                .map_err(|_| {
+                    error!("can't encrypt password");
+                    CreateRootUserError::EncryptPassword
+                })?;
 
             let root_user = User::new(None, input.user.name, password, Uuid::new_v4());
 
-            self.user_repository
-                .create(root_user)
-                .await
-                .map_err(|_| CreateRootUserError::CreateUser)?;
+            self.user_repository.create(root_user).await.map_err(|_| {
+                error!("can't create user");
+                CreateRootUserError::CreateUser
+            })?;
 
+            info!("root user created");
             Ok(())
         } else {
+            info!("root user already exists");
             Ok(())
         }
     }
