@@ -1,3 +1,4 @@
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -39,23 +40,33 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
         }
     }
 
+    #[instrument(skip(self, create_user), fields(master_id = ?create_user.master_id))]
     async fn fetch_master(
         &self,
         create_user: &CreateUser,
     ) -> Result<Option<User>, CreateUserError> {
         if let Some(master_id) = create_user.master_id {
+            info!("fetching master user");
+
             let master = self
                 .user_repository
                 .find(master_id)
                 .await
-                .map_err(|_| CreateUserError::MasterNotFound)?;
+                .map_err(|_| {
+                    warn!(master_id = %master_id, "master user not found");
+                    CreateUserError::MasterNotFound
+                })?;
+
             Ok(Some(master))
         } else {
             Ok(None)
         }
     }
 
+    #[instrument(skip(self, input), fields(user_name = %input.user.name))]
     pub async fn exec(&self, input: CreateUserInput) -> Result<(), CreateUserError> {
+        info!("creating user");
+
         let create_user = input.user;
 
         let master = self.fetch_master(&create_user).await?;
@@ -64,15 +75,22 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
             .auth_repository
             .hash(&create_user.password)
             .await
-            .map_err(CreateUserError::AuthError)?;
+            .map_err(|e| {
+                error!("failed to encrypt password");
+                CreateUserError::AuthError(e)
+            })?;
 
         let user = User::new(master, create_user.name, password, Uuid::new_v4());
 
         self.user_repository
             .create(user)
             .await
-            .map_err(|_| CreateUserError::UserNotCreated)?;
+            .map_err(|_| {
+                error!("failed to create user");
+                CreateUserError::UserNotCreated
+            })?;
 
+        info!("user created successfully");
         Ok(())
     }
 }
