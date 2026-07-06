@@ -1,12 +1,11 @@
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
-use crate::{
-    entity::user::User,
-    repository::{
-        auth_repository::{AuthRepositoryErr, IAuthRepository},
-        user_repository::IUserRepository,
-    },
+use crate::domain::entity::user::User;
+
+use crate::infraestruture::repository::auth_repository::AuthRepositoryErr;
+use crate::infraestruture::repository::{
+    auth_repository::IAuthRepository, user_repository::IUserRepository,
 };
 
 pub struct CreateUserCase<UR: IUserRepository, UA: IAuthRepository> {
@@ -48,14 +47,10 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
         if let Some(master_id) = create_user.master_id {
             info!("fetching master user");
 
-            let master = self
-                .user_repository
-                .find(master_id)
-                .await
-                .map_err(|_| {
-                    warn!(master_id = %master_id, "master user not found");
-                    CreateUserError::MasterNotFound
-                })?;
+            let master = self.user_repository.find(master_id).await.map_err(|_| {
+                warn!(master_id = %master_id, "master user not found");
+                CreateUserError::MasterNotFound
+            })?;
 
             Ok(Some(master))
         } else {
@@ -82,13 +77,10 @@ impl<UR: IUserRepository, UA: IAuthRepository> CreateUserCase<UR, UA> {
 
         let user = User::new(master, create_user.name, password, Uuid::new_v4());
 
-        self.user_repository
-            .create(user)
-            .await
-            .map_err(|_| {
-                error!("failed to create user");
-                CreateUserError::UserNotCreated
-            })?;
+        self.user_repository.create(user).await.map_err(|_| {
+            error!("failed to create user");
+            CreateUserError::UserNotCreated
+        })?;
 
         info!("user created successfully");
         Ok(())
@@ -100,13 +92,12 @@ mod test {
 
     use super::*;
 
-    use crate::{
-        repository::{
-            auth_repository::MockIAuthRepository,
-            user_repository::{MockIUserRepository, UserRepositoryError},
-        },
-        use_case::user::create_user_case::CreateUserCase,
+    use crate::infraestruture::repository::{
+        auth_repository::{AuthRepositoryErr, MockIAuthRepository},
+        user_repository::{MockIUserRepository, UserRepositoryError},
     };
+
+    use crate::application::use_case::user::create_user_case::CreateUserCase;
 
     #[test]
     fn new() {

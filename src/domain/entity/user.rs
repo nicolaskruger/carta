@@ -23,7 +23,7 @@ impl User {
 mod test {
     use uuid::Uuid;
 
-    use crate::entity::user::User;
+    use crate::domain::entity::user::User;
 
     #[test]
     fn new() {

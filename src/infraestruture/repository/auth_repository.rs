@@ -42,7 +42,7 @@ impl IAuthRepository for AragornAuthRepository {
 #[cfg(test)]
 mod test {
 
-    use crate::repository::auth_repository::{
+    use crate::infraestruture::repository::auth_repository::{
         AragornAuthRepository, AuthRepositoryErr, IAuthRepository,
     };
 

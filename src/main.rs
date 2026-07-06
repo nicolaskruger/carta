@@ -1,4 +1,4 @@
-use carta::config::{
+use carta::infraestruture::config::{
     db_pool::{db_pool, run_migrations},
     env::load_env,
     grpc_config,
@@ -14,7 +14,6 @@ enum MainError {
 
 #[tokio::main]
 async fn main() -> Result<(), MainError> {
-
     tracing_subscriber::fmt::init();
 
     let env = load_env().map_err(|_| MainError::Env)?;

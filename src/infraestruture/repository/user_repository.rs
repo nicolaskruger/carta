@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::entity::user::User;
+use crate::domain::entity::user::User;
 
 #[derive(Debug)]
 pub enum UserRepositoryError {
@@ -120,7 +120,7 @@ impl IUserRepository for PostgresqlUserRepository {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{db_pool::db_pool, env::load_env};
+    use crate::infraestruture::config::{db_pool::db_pool, env::load_env};
 
     use super::*;
 

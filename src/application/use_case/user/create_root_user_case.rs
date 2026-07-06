@@ -1,9 +1,10 @@
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    entity::user::User,
-    repository::{auth_repository::IAuthRepository, user_repository::IUserRepository},
+use crate::domain::entity::user::User;
+
+use crate::infraestruture::repository::{
+    auth_repository::IAuthRepository, user_repository::IUserRepository,
 };
 
 pub struct CreateRootUserCase<UR: IUserRepository, UA: IAuthRepository> {
@@ -77,7 +78,7 @@ mod test {
 
     use super::*;
 
-    use crate::repository::{
+    use crate::infraestruture::repository::{
         auth_repository::{AuthRepositoryErr, MockIAuthRepository},
         user_repository::{MockIUserRepository, UserRepositoryError},
     };
